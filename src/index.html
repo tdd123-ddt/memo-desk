@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: blob: memoimg:" />
+  <title>侧边备忘录</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- 收起状态时显示的边条（右侧=竖排文字，顶部=横排文字，小浮窗=带待办数的气泡） -->
+  <div class="edge-hint" id="edgeHint">
+    <span class="eh-text">备忘</span>
+    <span class="eh-float"><i>🗒</i><b id="edgeCount">0</b></span>
+  </div>
+
+  <div class="app" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="dot"></span>
+        <span class="title">备忘卡片</span>
+        <span class="count" id="count">0</span>
+      </div>
+      <div class="actions">
+        <button class="ico-btn" id="btnDock" title="窗口位置：右侧 / 顶部 / 小浮窗">⇱</button>
+        <button class="ico-btn" id="btnTheme" title="切换外观样式">🎨</button>
+        <button class="ico-btn" id="btnCurve" title="曲线排布开关">∿</button>
+        <button class="ico-btn" id="btnPin" title="锁定展开（鼠标移开不收起）">📌</button>
+        <button class="ico-btn" id="btnHide" title="收起到屏幕边缘">›</button>
+        <button class="ico-btn" id="btnMin" title="最小化到托盘（点右下角托盘图标恢复）">—</button>
+        <div class="theme-pop" id="dockPop" hidden>
+          <div class="tp-title">窗口位置</div>
+          <button class="tp-item" data-dock="right"><i class="dp-ico">▐</i>右侧贴边</button>
+          <button class="tp-item" data-dock="top"><i class="dp-ico">▬</i>顶部贴边</button>
+          <button class="tp-item" data-dock="float"><i class="dp-ico">▢</i>小浮窗（可拖动）</button>
+          <div class="tp-hr"></div>
+          <button class="tp-item" id="btnResetPos"><i class="dp-ico">↺</i>重置小浮窗位置</button>
+          <button class="tp-item" id="btnResetSize"><i class="dp-ico">⤢</i>恢复默认页面大小</button>
+          <div class="tp-hr"></div>
+          <div class="tp-title">唤出方式</div>
+          <button class="tp-item" data-wake="hover"><i class="dp-ico">⇢</i>鼠标碰到边缘就摊开</button>
+          <button class="tp-item" data-wake="handle"><i class="dp-ico">▏</i>边缘细把手，点击才打开</button>
+          <div class="tp-tip">切换窗口位置会自动重启程序（避免卡死）<br>小浮窗一直用自己的气泡，不受唤出方式影响</div>
+        </div>
+        <div class="theme-pop" id="themePop" hidden>
+          <div class="tp-title">窗口外观</div>
+          <button class="tp-item" data-theme="glass"><i class="tp-sw-glass"></i>毛玻璃（半透明）</button>
+          <button class="tp-item" data-theme="ink"><i class="tp-sw-ink"></i>暗夜玻璃</button>
+          <button class="tp-item" data-theme="light"><i class="tp-sw-light"></i>简约浅色（不透明）</button>
+          <div class="tp-hr"></div>
+          <div class="tp-row">
+            <span>曲线排布</span>
+            <div class="switch" id="curveSwitch"></div>
+          </div>
+          <div class="tp-row">
+            <span>曲线弧度</span>
+            <input type="range" id="curveRange" min="10" max="70" value="40" style="width:80px;accent-color:var(--primary)" />
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-ico">🔍</span>
+        <input id="search" type="text" placeholder="搜索标题、内容、标签…" />
+        <button class="clear-ico" id="clearSearch" hidden>×</button>
+      </div>
+      <button class="new-btn" id="btnNew">+ 新建</button>
+    </div>
+
+    <div class="filters">
+      <div class="chips" id="tagChips"></div>
+      <select id="sortBy" title="排序方式">
+        <option value="due">按截止日期</option>
+        <option value="priority">按优先级</option>
+        <option value="created">按创建时间</option>
+      </select>
+    </div>
+
+    <main class="list" id="list"></main>
+
+    <div class="empty" id="empty" hidden>
+      <div class="empty-ico">🗒️</div>
+      <p>还没有备忘卡片</p>
+      <span>点右上角「+ 新建」添加第一条</span>
+    </div>
+
+    <!-- 外观弹层打开时加的暗遮罩，避免和下面的卡片糊在一起看不清 -->
+    <div class="pop-mask" id="popMask" hidden></div>
+
+    <!-- 手动调整页面大小：右下角把手 + 右/下两条透明边缘热区 -->
+    <div class="resize-grip" id="resizeGrip" title="拖动调整页面大小"></div>
+    <div class="resize-edge resize-edge-r" id="resizeEdgeR" title="拖动调整宽度"></div>
+    <div class="resize-edge resize-edge-b" id="resizeEdgeB" title="拖动调整高度"></div>
+  </div>
+
+  <!-- 详情 / 编辑面板 -->
+  <div class="detail" id="detail" hidden>
+    <div class="detail-head">
+      <button class="back-btn" id="btnBack">‹ 返回</button>
+      <div class="detail-actions">
+        <button class="text-btn danger" id="btnDelete">🗑 删除</button>
+        <button class="primary-btn" id="btnSave">保存</button>
+      </div>
+    </div>
+
+    <div class="detail-body">
+      <label class="field">
+        <span class="label">勾选表示已完成</span>
+        <label class="done-row">
+          <input type="checkbox" id="fDone" />
+          <span>标记为已完成</span>
+        </label>
+      </label>
+
+      <label class="field">
+        <span class="label">标题</span>
+        <input type="text" id="fTitle" placeholder="例如：交课程论文" maxlength="60" />
+      </label>
+
+      <label class="field" id="dueField">
+        <span class="label">截止日期</span>
+        <input type="datetime-local" id="fDue" />
+        <div class="due-hint" id="dueHint"></div>
+        <div class="quick-due">
+          <button data-days="0">今天</button>
+          <button data-days="1">明天</button>
+          <button data-days="3">3天后</button>
+          <button data-days="7">一周后</button>
+          <button data-days="-1">清除</button>
+        </div>
+      </label>
+
+      <!-- 设了重复之后由规则自动排期，不需要再填截止日期，就把上面那一栏换成这行说明 -->
+      <div class="due-lock" id="dueLocked" hidden></div>
+
+      <div class="field" id="windowField">
+        <span class="label">生效时段（可选）</span>
+        <div class="win-row"><span>开始</span><input type="datetime-local" id="fStartAt" /></div>
+        <div class="win-row"><span>结束</span><input type="datetime-local" id="fEndAt" /></div>
+        <div class="win-hint" id="winHint"></div>
+        <div class="win-actions"><button type="button" id="btnWinClear">清除时段</button></div>
+      </div>
+
+      <div class="field">
+        <span class="label">重复</span>
+        <div class="rpt-group" id="fRepeat">
+          <button data-rpt="none">不重复</button>
+          <button data-rpt="daily">每天</button>
+          <button data-rpt="weekly">每周</button>
+          <button data-rpt="monthly">每月</button>
+        </div>
+        <div class="rpt-opt" id="rptWeekly" hidden>
+          <div class="wd-group" id="fWeekdays">
+            <button data-wd="1">一</button>
+            <button data-wd="2">二</button>
+            <button data-wd="3">三</button>
+            <button data-wd="4">四</button>
+            <button data-wd="5">五</button>
+            <button data-wd="6">六</button>
+            <button data-wd="0">日</button>
+          </div>
+          <div class="rpt-sub">可多选；一个都不选 = 按起始那天是周几重复</div>
+        </div>
+        <div class="rpt-opt" id="rptMonthly" hidden>
+          <select id="fMonthDay" class="mini-select"></select>
+          <div class="rpt-sub">31 号遇到没有 31 号的月份，自动落到当月最后一天</div>
+        </div>
+        <div class="rpt-tip" id="rptTip"></div>
+      </div>
+
+      <div class="field">
+        <span class="label">优先级</span>
+        <div class="prio-group" id="fPrio">
+          <button data-prio="high"><i class="prio-dot p-high"></i>高</button>
+          <button data-prio="mid"><i class="prio-dot p-mid"></i>中</button>
+          <button data-prio="low"><i class="prio-dot p-low"></i>低</button>
+        </div>
+      </div>
+
+      <label class="field">
+        <span class="label">标签（逗号分隔）</span>
+        <input type="text" id="fTags" placeholder="工作, 学习" />
+        <div class="tag-suggest" id="tagSuggest"></div>
+      </label>
+
+      <label class="field grow">
+        <span class="label">正文备注</span>
+        <textarea id="fBody" placeholder="写点什么…支持多行"></textarea>
+      </label>
+
+      <div class="field">
+        <div class="label-row">
+          <span class="label">要求清单</span>
+          <span class="item-progress" id="itemsProgress"></span>
+        </div>
+        <div class="checklist" id="fItems"></div>
+        <button class="add-item" id="btnAddItem">+ 添加一项</button>
+      </div>
+
+      <div class="field">
+        <div class="label-row">
+          <span class="label">图片</span>
+          <span class="item-progress">复制后 Ctrl+V 即可</span>
+        </div>
+        <div class="img-drop" id="imgDrop">
+          <div class="img-grid" id="fImages"></div>
+          <div class="img-actions">
+            <button class="ghost-btn paste" id="btnPasteImg">📋 粘贴剪贴板图片</button>
+            <button class="ghost-btn" id="btnPickImg">＋ 从文件选择</button>
+            <button class="ghost-btn danger" id="btnClearImg" hidden>清空</button>
+            <input type="file" id="fileImg" accept="image/*" multiple hidden />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 轻提示（带可选的「撤销」按钮） -->
+  <div class="toast" id="toast" hidden>
+    <span id="toastText"></span>
+    <button class="toast-act" id="toastAct" hidden></button>
+  </div>
+
+  <!-- 删除二次确认 -->
+  <div class="confirm-mask" id="confirmMask" hidden>
+    <div class="confirm-box">
+      <div class="cf-title" id="cfTitle">删除这条备忘？</div>
+      <div class="cf-desc" id="cfDesc">删除后无法恢复。</div>
+      <div class="cf-btns">
+        <button class="ghost-btn" id="cfCancel">取消</button>
+        <button class="danger-btn" id="cfOk">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
