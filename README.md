@@ -1,5 +1,5 @@
 > **下载可直接运行的 Windows 版**：到本仓库的
-> [Releases 页面](https://github.com/tdd123-ddt/memo-desk/releases/latest) 下载 `侧边备忘录-空白版.zip`（约 98 MB）。
+> [Releases 页面](https://github.com/tdd123-ddt/memo-desk/releases/latest) 下载 `memo-desk-windows-v1.0.zip`（约 98 MB）。
 >
 > ⚠️ 装的时候注意两件事：
 > 1. 在 zip 上点**右键 → 全部提取**（建议选桌面），**等进度条走完**。文件夹里能看到
