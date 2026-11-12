@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>memo handle</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; overflow: hidden; }
+    #grip {
+      position: absolute; inset: 0; box-sizing: border-box; border-radius: 5px;
+      background: linear-gradient(180deg, rgba(120, 160, 255, .72), rgba(150, 120, 255, .72));
+      box-shadow: 0 1px 6px rgba(40, 60, 120, .35);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background .15s;
+    }
+    #grip:hover { background: linear-gradient(180deg, rgba(96, 142, 255, .98), rgba(140, 102, 255, .98)); }
+    #grip::after { content: ""; width: 2px; height: 18px; border-radius: 2px; background: rgba(255, 255, 255, .9); }
+    body.is-top #grip::after { width: 18px; height: 2px; }
+  </style>
+</head>
+<body>
+  <div id="grip" title="点击展开备忘面板"></div>
+  <script>
+    if (innerWidth > innerHeight) document.body.classList.add('is-top');
+    var grip = document.getElementById('grip');
+    grip.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    grip.addEventListener('click', function () {
+      if (window.memoHandle) window.memoHandle.open();
+    });
+  </script>
+</body>
+</html>
