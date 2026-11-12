@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="备忘录">
+<meta name="theme-color" content="#f7f6f3">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<title>备忘录 · 手机同步</title>
+<style>
+:root{
+  --bg:#f7f6f3; --card:#fff; --line:#e6e3dc; --fg:#1f1d1a; --sub:#8b857c;
+  --accent:#4a7c59; --danger:#c0563f; --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#161614; --card:#212020; --line:#333230; --fg:#eceae5; --sub:#949089; --accent:#7fb08c; --danger:#d8735c; }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+  font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;}
+body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);
+  overscroll-behavior-y:none;}
+.wrap{max-width:640px;margin:0 auto;padding:0 14px 96px}
+
+header{position:sticky;top:0;z-index:20;background:var(--bg);
+  padding:calc(env(safe-area-inset-top) + 8px) 14px 8px;border-bottom:1px solid var(--line);}
+.hrow{max-width:640px;margin:0 auto;display:flex;align-items:center;gap:10px}
+h1{font-size:19px;margin:0;flex:1;font-weight:600;letter-spacing:.5px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--sub);flex:none}
+.dot.on{background:var(--accent)}
+.dot.err{background:var(--danger)}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--fg);
+  border-radius:10px;padding:7px 13px;font-size:14px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--danger)}
+.btn:active{opacity:.65}
+.btn[disabled]{opacity:.4}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:13px 14px;margin-top:10px;display:flex;gap:11px;align-items:flex-start;cursor:pointer}
+.bar{width:4px;align-self:stretch;border-radius:3px;background:var(--line);flex:none}
+.bar.high{background:#c96a4e}.bar.mid{background:#c9a34e}.bar.low{background:#8fa8b8}
+.card .m{flex:1;min-width:0}
+.tt{font-weight:600;font-size:15.5px;word-break:break-word}
+.tt.done{text-decoration:line-through;color:var(--sub)}
+.bd{color:var(--sub);font-size:13px;margin-top:3px;word-break:break-word;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;font-size:12px;color:var(--sub)}
+.tag{background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:1px 8px}
+.due{color:var(--sub)}
+.due.over{color:var(--danger)}
+.rpt{color:var(--sub)}
+#dueWrap[hidden],#rptNote[hidden]{display:none}
+.note{color:var(--sub);font-size:12px;background:var(--bg);border:1px dashed var(--line);
+  border-radius:8px;padding:7px 9px;margin:2px 0 10px}
+.ck{width:23px;height:23px;border-radius:50%;border:1.5px solid var(--line);flex:none;margin-top:1px;
+  display:flex;align-items:center;justify-content:center;color:transparent;font-size:13px}
+.ck.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+.empty{text-align:center;color:var(--sub);padding:52px 20px;font-size:14px}
+.empty .big{font-size:34px;display:block;margin-bottom:10px;opacity:.5}
+
+#fab{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom) + 20px);
+  width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;
+  border:none;font-size:29px;line-height:1;box-shadow:0 4px 14px rgba(0,0,0,.22);cursor:pointer}
+
+/* 编辑 / 设置 全屏层 */
+.sheet{position:fixed;inset:0;background:var(--bg);z-index:40;display:flex;flex-direction:column}
+.sheet[hidden]{display:none}
+.sheet header{border-bottom:1px solid var(--line)}
+.sbody{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:14px 14px 40px}
+.sbody .wrap{padding-bottom:20px}
+label{display:block;font-size:12.5px;color:var(--sub);margin:14px 0 5px}
+input,textarea,select{width:100%;background:var(--card);border:1px solid var(--line);
+  color:var(--fg);border-radius:10px;padding:10px 12px;font:inherit;outline:none}
+textarea{min-height:130px;resize:vertical}
+input:focus,textarea:focus{border-color:var(--accent)}
+.row2{display:flex;gap:10px}
+.seg{display:flex;gap:7px}
+.seg .btn{flex:1;text-align:center}
+.seg .btn.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+.tip{font-size:12.5px;color:var(--sub);margin-top:6px}
+.sec{margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;
+  background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;word-break:break-all}
+#toast{position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(env(safe-area-inset-bottom) + 78px);background:rgba(30,28,26,.93);color:#fff;
+  padding:9px 16px;border-radius:20px;font-size:13.5px;opacity:0;transition:opacity .25s;
+  pointer-events:none;z-index:60;max-width:88%;text-align:center}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- ===== 列表页 ===== -->
+<header>
+  <div class="hrow">
+    <h1>备忘录</h1>
+    <span id="dot" class="dot" title="连接状态"></span>
+    <button class="btn" id="btnSync">同步</button>
+    <button class="btn" id="btnCfg">设置</button>
+  </div>
+</header>
+<div class="wrap">
+  <div class="empty" id="empty" hidden><span class="big">📝</span>还没有备忘<br>点右下角 + 新建一条</div>
+  <div id="list"></div>
+  <div class="tip" id="syncTip" style="text-align:center;margin-top:16px"></div>
+</div>
+<button id="fab">+</button>
+
+<!-- 安卓/鸿蒙：浏览器弹出"可安装"提示后显示的一键安装条 -->
+<div id="installBar" hidden style="position:fixed;left:14px;right:80px;
+  bottom:calc(env(safe-area-inset-bottom) + 20px);background:var(--accent);color:#fff;
+  border-radius:12px;padding:11px 14px;font-size:14px;text-align:center;cursor:pointer;
+  box-shadow:0 4px 14px rgba(0,0,0,.22);z-index:30">
+  📲 安装到手机桌面（像 App 一样打开）
+</div>
+
+<!-- ===== 编辑页 ===== -->
+<div class="sheet" id="editSheet" hidden>
+  <header><div class="hrow">
+    <button class="btn" id="edCancel">取消</button>
+    <h1 id="edTitle">新建备忘</h1>
+    <button class="btn primary" id="edSave">保存</button>
+  </div></header>
+  <div class="sbody"><div class="wrap">
+    <label>标题</label><input id="fTitle" placeholder="（留空则用正文首行）">
+    <label>内容</label><textarea id="fBody" placeholder="想记点什么…"></textarea>
+    <div id="dueWrap"><label>截止日期</label><input id="fDue" type="datetime-local"></div>
+    <div id="rptNote" class="note" hidden>这条是重复备忘，不设截止日期（规则在电脑端改）</div>
+    <div class="row2">
+      <div style="flex:1"><label>标签（逗号分隔）</label><input id="fTags" placeholder="作业, 生活"></div>
+      <div style="flex:1"><label>优先级</label>
+        <div class="seg" id="segPri">
+          <button class="btn" data-v="high">高</button>
+          <button class="btn sel" data-v="mid">中</button>
+          <button class="btn" data-v="low">低</button>
+        </div>
+      </div>
+    </div>
+    <div class="sec">
+      <button class="btn danger" id="edDel" style="width:100%">删除这条备忘</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- ===== 设置页 ===== -->
+<div class="sheet" id="cfgSheet" hidden>
+  <header><div class="hrow">
+    <button class="btn" id="cfgCancel">返回</button>
+    <h1>连接电脑</h1>
+    <button class="btn primary" id="cfgSave">保存</button>
+  </div></header>
+  <div class="sbody"><div class="wrap">
+    <div class="sec" style="border:none;padding-top:0;margin-top:0">
+      <label style="margin-top:0">电脑地址</label>
+      <input id="cAddr" placeholder="http://192.168.1.5:8733">
+      <div class="tip">在电脑的备忘录托盘菜单里点「手机同步 → 显示连接信息」可以看到，
+        也可以直接扫电脑上显示的地址。</div>
+    </div>
+    <div class="sec">
+      <label>配对码（电脑上显示的 6 位数字）</label>
+      <input id="cCode" inputmode="numeric" placeholder="123456">
+      <button class="btn primary" id="cPair" style="width:100%;margin-top:10px">配对并连接</button>
+      <div class="tip" id="cState"></div>
+    </div>
+    <div class="sec">
+      <label>当前状态</label>
+      <div class="mono" id="cInfo">—</div>
+      <button class="btn" id="cClear" style="width:100%;margin-top:10px">清除本机配对信息</button>
+      <button class="btn danger" id="cWipe" style="width:100%;margin-top:8px">清空手机上全部备忘</button>
+    </div>
+    <div class="sec">
+      <div class="tip">
+        <b>怎么用</b><br>
+        1. 手机和电脑连同一个 Wi-Fi。<br>
+        2. 电脑备忘录 → 托盘图标右键 → 「手机同步」→ 开启。<br>
+        3. 在 iPhone 上用 Safari 打开电脑显示的地址，点分享 → 「添加到主屏幕」。<br>
+        4. 首次打开输一次配对码，之后每次点顶部「同步」即可双向合并。<br><br>
+        <b>说明</b>：图片只存在各自的设备上、不参与同步；两端都改过的同一条，
+        以最后修改的那次为准；删除也会被同步，不会"删了又复活"。
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/*__SYNC_CORE__*/
+</script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var CFG_KEY = 'memo_mobile_cfg', DOC_KEY = 'memo_mobile_doc';
+  var cfg = null, doc = { notes: [], tombstones: [] }, editId = null, syncing = false;
+
+  /* ---------- 本地存储 ---------- */
+  function loadCfg() {
+    try { cfg = JSON.parse(localStorage.getItem(CFG_KEY) || 'null'); } catch (e) { cfg = null; }
+    if (!cfg) cfg = { base: '', token: '' };
+  }
+  function saveCfg() { try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); } catch (e) {} }
+  function loadDoc() {
+    try {
+      var d = JSON.parse(localStorage.getItem(DOC_KEY) || 'null');
+      doc = (d && Array.isArray(d.notes)) ? d : { notes: [], tombstones: [] };
+    } catch (e) { doc = { notes: [], tombstones: [] }; }
+    if (!Array.isArray(doc.tombstones)) doc.tombstones = [];
+  }
+  function saveDoc() { try { localStorage.setItem(DOC_KEY, JSON.stringify(doc)); } catch (e) {} }
+
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ---------- 网络 ---------- */
+  function api(path, body) {
+    if (!cfg.base) return Promise.reject(new Error('还没填电脑地址'));
+    var url = cfg.base.replace(/\/+$/, '') + path;
+    var opt = { method: body ? 'POST' : 'GET', headers: {} };
+    if (body) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+    if (cfg.token) opt.headers['X-Memo-Token'] = cfg.token;
+    return fetch(url, opt).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
+  function setDot(state) {
+    var d = $('dot');
+    d.className = 'dot' + (state === 'on' ? ' on' : state === 'err' ? ' err' : '');
+  }
+
+  function doSync(silent) {
+    if (syncing) return;
+    if (!cfg.base) { if (!silent) { openCfg(); } return; }
+    syncing = true; setDot(''); $('btnSync').disabled = true;
+    api('/api/sync?ts=' + Date.now(), { notes: doc.notes, tombstones: doc.tombstones })
+      .then(function (r) {
+        // 服务端合并后返回的已经是双方一致的结果，直接用它覆盖本地
+        doc.notes = r.doc.notes || [];
+        doc.tombstones = r.doc.tombstones || [];
+        saveDoc(); render(); setDot('on');
+        // 服务端返回的统计是站在电脑一侧说的，手机上要反过来说才符合直觉
+        var s = r.stats || {};
+        var sent = s.pulled || 0, got = s.pushed || 0;
+        var sentDel = s.pulledDeleted || 0, gotDel = s.pushedDeleted || 0;
+        var parts = [];
+        if (sent) parts.push('推送 ' + sent + ' 条到电脑');
+        if (sentDel) parts.push('在电脑上删除 ' + sentDel + ' 条');
+        if (got) parts.push('从电脑拉取 ' + got + ' 条');
+        if (gotDel) parts.push('同步电脑的删除 ' + gotDel + ' 条');
+        $('syncTip').textContent = '上次同步：' + new Date().toTimeString().slice(0, 5)
+          + (parts.length ? '（' + parts.join('，') + '）' : '（没有变化）');
+        if (!silent) toast(parts.length ? '已同步：' + parts.join('，') : '已是最新');
+      })
+      .catch(function (err) {
+        setDot('err');
+        if (!silent) toast('连不上电脑：' + err.message);
+      })
+      .then(function () { syncing = false; $('btnSync').disabled = false; });
+  }
+
+  /* ---------- 渲染 ---------- */
+  function fmtDue(v) {
+    if (!v) return '';
+    var d = new Date(v); if (isNaN(d.getTime())) return '';
+    var p = function (x) { return String(x).padStart(2, '0'); };
+    var s = (d.getMonth() + 1) + '月' + d.getDate() + '日';
+    if (d.getHours() || d.getMinutes()) s += ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    return s;
+  }
+  var WD_CN = ['日', '一', '二', '三', '四', '五', '六'];
+  var WD_ORDER = [1, 2, 3, 4, 5, 6, 0];
+  /** 重复规则翻成人话：每天 / 每周一、三 / 每月15号 */
+  function fmtRepeat(n) {
+    if (n.repeat === 'daily') return '每天';
+    if (n.repeat === 'weekly') {
+      var ds = (n.repeatDays || []).slice().sort(function (a, b) {
+        return WD_ORDER.indexOf(a) - WD_ORDER.indexOf(b);
+      });
+      return ds.length ? '每周' + ds.map(function (d) { return WD_CN[d]; }).join('、') : '每周';
+    }
+    if (n.repeat === 'monthly') return n.repeatDay ? '每月' + n.repeatDay + '号' : '每月月末';
+    return '重复';
+  }
+  function render() {
+    var list = $('list'); list.innerHTML = '';
+    var arr = doc.notes.slice().sort(function (a, b) {
+      if (!!a.done !== !!b.done) return a.done ? 1 : -1;
+      var ad = a.due ? new Date(a.due).getTime() : 8e15;
+      var bd = b.due ? new Date(b.due).getTime() : 8e15;
+      if (ad !== bd) return ad - bd;
+      return (b.updatedAt || 0) - (a.updatedAt || 0);
+    });
+    $('empty').hidden = arr.length > 0;
+    arr.forEach(function (n) {
+      var el = document.createElement('div');
+      el.className = 'card';
+      var bar = document.createElement('div');
+      bar.className = 'bar ' + (n.priority || 'mid');
+      var ck = document.createElement('div');
+      ck.className = 'ck' + (n.done ? ' on' : '');
+      ck.textContent = '✓';
+      ck.addEventListener('click', function (ev) { ev.stopPropagation(); toggleDone(n); });
+      var m = document.createElement('div'); m.className = 'm';
+      var tt = document.createElement('div');
+      tt.className = 'tt' + (n.done ? ' done' : '');
+      tt.textContent = n.title || (n.body || '').split('\n')[0] || '（无标题）';
+      m.appendChild(tt);
+      if (n.body) {
+        var bd = document.createElement('div'); bd.className = 'bd'; bd.textContent = n.body;
+        m.appendChild(bd);
+      }
+      var meta = document.createElement('div'); meta.className = 'meta';
+      var recur = !!(n.repeat && n.repeat !== 'none');
+      if (recur) {
+        var rp = document.createElement('span'); rp.className = 'rpt'; rp.textContent = '🔁 ' + fmtRepeat(n);
+        meta.appendChild(rp);
+      } else if (n.due) {
+        var due = document.createElement('span');
+        var over = !n.done && new Date(n.due).getTime() < Date.now();
+        due.className = 'due' + (over ? ' over' : '');
+        due.textContent = '⏰ ' + fmtDue(n.due);
+        meta.appendChild(due);
+      }
+      (n.tags || []).forEach(function (t) {
+        var s = document.createElement('span'); s.className = 'tag'; s.textContent = t;
+        meta.appendChild(s);
+      });
+      if (meta.children.length) m.appendChild(meta);
+      el.appendChild(bar); el.appendChild(ck); el.appendChild(m);
+      el.addEventListener('click', function () { openEdit(n.id); });
+      list.appendChild(el);
+    });
+  }
+
+  function touch(n) { n.updatedAt = Date.now(); }
+
+  function toggleDone(n) { n.done = !n.done; touch(n); saveDoc(); render(); }
+
+  /* ---------- 编辑 ---------- */
+  function openEdit(id) {
+    editId = id;
+    var n = null;
+    doc.notes.forEach(function (x) { if (x.id === id) n = x; });
+    $('edTitle').textContent = n ? '编辑备忘' : '新建备忘';
+    $('fTitle').value = n ? (n.title || '') : '';
+    $('fBody').value = n ? (n.body || '') : '';
+    var recur = !!(n && n.repeat && n.repeat !== 'none');
+    $('dueWrap').hidden = recur;            // 重复备忘不设截止日期
+    $('rptNote').hidden = !recur;
+    $('fDue').value = n && n.due && !recur ? toLocalInput(n.due) : '';
+    $('fTags').value = n ? (n.tags || []).join(', ') : '';
+    var pri = n && n.priority ? n.priority : 'mid';
+    Array.prototype.forEach.call($('segPri').children, function (b) {
+      b.classList.toggle('sel', b.dataset.v === pri);
+    });
+    $('edDel').hidden = !n;
+    $('editSheet').hidden = false;
+  }
+  function toLocalInput(iso) {
+    var d = new Date(iso); if (isNaN(d.getTime())) return '';
+    var p = function (v) { return String(v).padStart(2, '0'); };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
+      + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function saveEdit() {
+    var n = null;
+    if (editId) doc.notes.forEach(function (x) { if (x.id === editId) n = x; });
+    var title = $('fTitle').value.trim();
+    var body = $('fBody').value;
+    if (!title && !body.trim()) { toast('标题和内容都空着，没有保存'); return; }
+    if (!n) {
+      n = { id: MemoSync.newId(), createdAt: Date.now(), images: [], items: [], repeat: 'none' };
+      doc.notes.push(n);
+    }
+    n.title = title;
+    n.body = body;
+    // 重复备忘的 due 是电脑端按规则排的「本期时间」，手机上不碰它
+    if (!(n.repeat && n.repeat !== 'none')) {
+      n.due = $('fDue').value ? new Date($('fDue').value).toISOString() : '';
+    }
+    n.tags = $('fTags').value.split(/[,，\s]+/).filter(Boolean);
+    var sel = $('segPri').querySelector('.sel');
+    n.priority = sel ? sel.dataset.v : 'mid';
+    touch(n);
+    // 若这条此前被删过又重新编辑，要把墓碑撤掉，否则同步时会立刻又被删
+    doc.tombstones = doc.tombstones.filter(function (t) { return t.id !== n.id; });
+    saveDoc(); render();
+    $('editSheet').hidden = true; editId = null;
+    toast('已保存');
+  }
+  function delEdit() {
+    var n = null;
+    doc.notes.forEach(function (x) { if (x.id === editId) n = x; });
+    if (!n) return;
+    doc.notes = doc.notes.filter(function (x) { return x.id !== editId; });
+    doc.tombstones = doc.tombstones.filter(function (t) { return t.id !== editId; });
+    doc.tombstones.push({ id: editId, at: Date.now() });
+    saveDoc(); render();
+    $('editSheet').hidden = true; editId = null;
+    toast('已删除（同步后电脑上也会删掉）');
+  }
+
+  /* ---------- 设置 ---------- */
+  function openCfg() { refreshCfg(); $('cfgSheet').hidden = false; }
+  function refreshCfg() {
+    $('cAddr').value = cfg.base || '';
+    $('cInfo').textContent =
+      '地址：' + (cfg.base || '未设置') + '\n'
+      + '配对：' + (cfg.token ? '已连接' : '未配对') + '\n'
+      + '本机备忘：' + doc.notes.length + ' 条';
+  }
+
+  $('btnSync').addEventListener('click', function () { doSync(false); });
+  $('btnCfg').addEventListener('click', openCfg);
+  $('fab').addEventListener('click', function () { openEdit(null); });
+  $('edCancel').addEventListener('click', function () { $('editSheet').hidden = true; editId = null; });
+  $('edSave').addEventListener('click', saveEdit);
+  $('edDel').addEventListener('click', delEdit);
+  Array.prototype.forEach.call($('segPri').children, function (b) {
+    b.addEventListener('click', function () {
+      Array.prototype.forEach.call($('segPri').children, function (x) { x.classList.remove('sel'); });
+      b.classList.add('sel');
+    });
+  });
+  $('cfgCancel').addEventListener('click', function () { $('cfgSheet').hidden = true; });
+  $('cfgSave').addEventListener('click', function () {
+    cfg.base = $('cAddr').value.trim().replace(/\/+$/, '');
+    saveCfg(); refreshCfg();
+    $('cfgSheet').hidden = true;
+    toast('地址已保存');
+    doSync(true);
+  });
+  $('cPair').addEventListener('click', function () {
+    var code = $('cCode').value.trim();
+    var base = $('cAddr').value.trim().replace(/\/+$/, '');
+    if (!base) { toast('先填电脑地址'); return; }
+    cfg.base = base; saveCfg();
+    $('cState').textContent = '正在配对…';
+    fetch(base + '/api/pair', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code }),
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.ok && res.j && res.j.token) {
+          cfg.token = res.j.token; saveCfg(); refreshCfg();
+          $('cState').textContent = '配对成功，正在同步…';
+          doSync(false);
+        } else {
+          $('cState').textContent = '配对失败：' + ((res.j && res.j.error) || '配对码不对');
+        }
+      })
+      .catch(function (e) { $('cState').textContent = '连不上电脑：' + e.message; });
+  });
+  $('cClear').addEventListener('click', function () {
+    cfg = { base: cfg.base, token: '' }; saveCfg(); refreshCfg(); toast('已清除配对');
+  });
+  $('cWipe').addEventListener('click', function () {
+    if (!confirm('会清空手机上所有备忘，且同步后电脑上的也会一起删掉。确定？')) return;
+    doc.notes.forEach(function (n) { doc.tombstones.push({ id: n.id, at: Date.now() }); });
+    doc.notes = []; saveDoc(); render(); refreshCfg(); toast('已清空');
+  });
+
+  /* ---------- 启动 ---------- */
+  loadCfg(); loadDoc(); render();
+  if (cfg.token) { doSync(true); }
+  else if (cfg.base) { doSync(true); }
+  else { openCfg(); }
+
+  /* ---- App 分享进来的文字：自动填进新建框（安卓 APK 的「分享到备忘录」走这里） ---- */
+  (function handleShareParam() {
+    var q = new URLSearchParams(location.search);
+    var added = q.get('added');
+    if (added) { setTimeout(function () { toast('已从分享添加一条备忘'); }, 600); }
+    var share = q.get('share');
+    if (!share) return;
+    var lines = share.replace(/\r/g, '').split('\n');
+    var t = (lines.shift() || '').trim();
+    var b = lines.join('\n').trim();
+    setTimeout(function () {
+      openEdit(null);
+      $('fTitle').value = t;
+      $('fBody').value = b;
+    }, 700);
+    // 用完把参数从地址里抹掉，免得刷新后又弹一次
+    history.replaceState(null, '', location.pathname);
+  })();
+
+  /* ---- 后台自动同步：每 60 秒轻轻试一次，配网失败静默不打扰 ----
+     （人在外面靠 Tailscale 也走这里；页面切到后台时 iOS 会冻结定时器，
+      回前台 visibilitychange 那次同步才是主要的，这里只是兜底） */
+  var AUTO_MS = 60000;
+  var lastAuto = 0;
+  setInterval(function () {
+    if (document.hidden || !cfg.token || syncing) return;
+    if (Date.now() - lastAuto < AUTO_MS) return;
+    lastAuto = Date.now();
+    doSync(true);
+  }, 20000);
+
+  /* ---- 安卓/鸿蒙的物理返回键：优先关掉当前弹层，别一下把整个页面退出去 ----
+     做法：每次打开弹层就 push 一条历史，监听 popstate 来关它。 */
+  var sheetStack = [];
+  function watchSheet(id) {
+    var el = $(id);
+    Object.defineProperty(el, '_memoWatch', { value: true });
+    new MutationObserver(function () {
+      var open = !el.hidden;
+      var top = sheetStack[sheetStack.length - 1] === id;
+      if (open && !top) { sheetStack.push(id); history.pushState({ s: id }, ''); }
+      if (!open && top) { sheetStack.pop(); history.back(); }
+    }).observe(el, { attributes: true, attributeFilter: ['hidden'] });
+  }
+  watchSheet('editSheet'); watchSheet('cfgSheet');
+  window.addEventListener('popstate', function () {
+    var id = sheetStack.pop();
+    if (id) { var el = $(id); if (el) el.hidden = true; }
+    else if (document.getElementById('cfgSheet')) { /* 没弹层时返回键交还系统（退出页面） */ }
+  });
+
+  /* ---- 安卓 Chrome / 鸿蒙浏览器的「安装到桌面」引导 ---- */
+  var deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    showInstallBtn();
+  });
+  function showInstallBtn() {
+    var bar = document.getElementById('installBar');
+    if (!bar) return;
+    bar.hidden = false;
+  }
+  window.addEventListener('appinstalled', function () {
+    var bar = document.getElementById('installBar');
+    if (bar) bar.hidden = true;
+    toast('已安装到桌面');
+  });
+  var ib = document.getElementById('installBar');
+  if (ib) ib.addEventListener('click', function () {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(function () { deferredPrompt = null; ib.hidden = true; });
+  });
+  // 已是独立窗口（添加过主屏幕）就不用再提示
+  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+    if (ib) ib.hidden = true;
+  }
+
+  // 页面回到前台时自动同步一次（iOS 切回 App 时触发）
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && cfg.base) doSync(true);
+  });
+  // 离线/恢复
+  window.addEventListener('online', function () { if (cfg.base) doSync(true); });
+})();
+</script>
+</body>
+</html>
