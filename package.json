@@ -1,0 +1,14 @@
+{
+  "name": "memo-desk",
+  "version": "1.0.0",
+  "description": "桌面侧边栏备忘录卡片",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.2.0"
+  }
+}
