@@ -1,0 +1,6 @@
+# Electron 运行时体积超过 GitHub 单文件限制，完整包见 Release 附件
+node_modules/
+memo-userdata/
+*.log
+*.zip
+.DS_Store
