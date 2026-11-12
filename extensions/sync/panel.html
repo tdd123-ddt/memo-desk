@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>手机同步</title>
+<style>
+:root{--bg:#f7f6f3;--card:#fff;--line:#e6e3dc;--fg:#1f1d1a;--sub:#8b857c;--accent:#4a7c59;--danger:#c0563f}
+@media (prefers-color-scheme:dark){:root{--bg:#161614;--card:#212020;--line:#333230;--fg:#eceae5;--sub:#949089;--accent:#7fb08c;--danger:#d8735c}}
+*{box-sizing:border-box}
+body{margin:0;padding:18px 20px;background:var(--bg);color:var(--fg);
+  font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+h1{font-size:17px;margin:0 0 4px;font-weight:600}
+.sub{color:var(--sub);font-size:12.5px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:11px}
+.k{font-size:12px;color:var(--sub);margin-bottom:4px}
+.addr{font-family:ui-monospace,Consolas,monospace;font-size:15px;word-break:break-all;
+  user-select:all;cursor:text;margin-bottom:3px}
+.code{font-family:ui-monospace,Consolas,monospace;font-size:26px;letter-spacing:6px;
+  font-weight:600;color:var(--accent);user-select:all}
+button{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:9px;
+  padding:7px 13px;font:inherit;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.danger{color:var(--danger)}
+button:active{opacity:.7}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.big{width:100%;margin-top:8px}
+.tip{font-size:12px;color:var(--sub);margin-top:9px;line-height:1.7}
+ol{margin:6px 0 0;padding-left:19px}
+li{margin-bottom:3px}
+.stat{font-size:12.5px;color:var(--sub);margin-top:9px}
+.warn{background:#fff4ec;border-color:#f0cdb8;color:#8a4a2e}
+</style>
+</head>
+<body>
+<h1>手机同步</h1>
+<div class="sub">iPhone 与这台电脑连同一个 Wi-Fi 即可同步备忘</div>
+
+<div class="card">
+  <div class="k">用 iPhone 的 Safari 打开这个地址</div>
+  <div id="addrs"></div>
+  <div class="btns"><button id="copy">复制地址</button></div>
+</div>
+
+<div class="card">
+  <div class="k">配对码（手机上首次打开时输入一次）</div>
+  <div class="code" id="code">------</div>
+  <div class="btns"><button id="regen">换一个配对码</button></div>
+</div>
+
+<div class="card">
+  <div class="k">人在外面 / 校园网隔离时：用 Tailscale 地址</div>
+  <div id="tsAddrs"></div>
+  <div class="tip" id="tsTip"></div>
+</div>
+
+<div class="card">
+  <div class="k">状态</div>
+  <div class="stat" id="stat">—</div>
+</div>
+
+<div class="card">
+  <div class="k">iPhone 上的操作步骤</div>
+  <ol>
+    <li>连上与电脑相同的 Wi-Fi</li>
+    <li>Safari 打开上面那个地址</li>
+    <li>输入 6 位配对码 → 自动开始同步</li>
+    <li>点底部<b>分享</b> → <b>添加到主屏幕</b>，之后就像 App 一样打开</li>
+  </ol>
+  <div class="tip">
+    同步是<b>双向合并</b>：两端各自的增删改会合并到一起，同一条以最后修改的为准；
+    删除也会同步（用了墓碑机制，不会"删了又复活"）。<br>
+    图片只保留在各自设备上、不参与同步。<br>
+    <b>手机打不开地址？</b>先点下面的防火墙按钮。还不行的话，多半是<b>校园网/公共 Wi-Fi 的设备隔离</b>
+    （同一 Wi-Fi 下设备之间互相访问被禁）——见最下面的解决办法。
+  </div>
+  <button class="big" id="fw">放行 Windows 防火墙（需管理员）</button>
+  <button class="big danger" id="stop">停止同步服务</button>
+</div>
+
+<div class="card warn">
+  <div class="k">手机连不上？用电脑自己开热点</div>
+  <ol>
+    <li>Windows 设置 → <b>网络和 Internet</b> → <b>移动热点</b> → 打开</li>
+    <li>iPhone 的 Wi-Fi 里连上这个热点</li>
+    <li>回到本页，地址里会多出一个 <b>192.168.137.1</b> 开头的，用那个</li>
+  </ol>
+  <div class="tip">
+    校园网 / 公共 Wi-Fi 常常开启「AP 隔离」，同一无线网络下的设备之间禁止互相访问，
+    这时候手机再怎么刷新都连不上电脑。让手机改连<b>电脑自己开的热点</b>，
+    两端就处在同一个小局域网里了，立刻就能通。
+  </div>
+</div>
+
+<script>
+var $ = function (id) { return document.getElementById(id); };
+var PORT = __PORT__;
+
+function paint(s) {
+  $('addrs').innerHTML = '';
+  (s.addresses || []).forEach(function (a) {
+    var d = document.createElement('div');
+    d.className = 'addr';
+    d.textContent = 'http://' + a + ':' + PORT;
+    $('addrs').appendChild(d);
+  });
+  $('code').textContent = s.pairCode || '------';
+  $('stat').textContent = '服务运行中 · 共 ' + s.notes + ' 条备忘'
+    + (s.lastSyncAt ? ' · 上次同步 ' + s.lastSyncAt : ' · 还没有同步过');
+
+  var ts = s.tailscale || [];
+  $('tsAddrs').innerHTML = '';
+  ts.forEach(function (a) {
+    var d = document.createElement('div');
+    d.className = 'addr';
+    d.textContent = 'http://' + a + ':' + PORT;
+    $('tsAddrs').appendChild(d);
+  });
+  $('tsTip').innerHTML = ts.length
+    ? '电脑已装 Tailscale ✓。手机装上 Tailscale 并登录<b>同一个账号</b>后，'
+      + '无论人在哪、连什么网，都用上面的地址同步，校园网隔离也一并绕开。'
+    : '电脑还没装 <b>Tailscale</b>（免费，tailscal​e.com）。装好后手机在外面也能同步到这台电脑：'
+      + '<br>1. 电脑和手机都装 Tailscale 并登录同一账号<br>'
+      + '2. 重启备忘录（托盘右键 → 退出，再打开）让本页多出 100.x 开头的地址<br>'
+      + '3. 手机用那个地址配对即可，人在哪都能同步';
+}
+
+function tick() {
+  fetch('/api/state').then(function (r) { return r.json(); })
+    .then(paint).catch(function () {});
+}
+tick();
+setInterval(tick, 2000);
+
+$('copy').addEventListener('click', function () {
+  var t = $('addrs').innerText.trim().split('\n')[0];
+  // http 页面属于非安全上下文，navigator.clipboard 不可用，必须留 execCommand 兜底
+  var done = false;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(function () { done = true; })
+      .catch(function () {});
+  }
+  if (!done) {
+    var ta = document.createElement('textarea');
+    ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  $('copy').textContent = '已复制 ✓';
+  setTimeout(function () { $('copy').textContent = '复制地址'; }, 1500);
+});
+$('regen').addEventListener('click', function () {
+  fetch('/api/regen-code', { method: 'POST' })
+    .then(function (r) { return r.json(); })
+    .then(function (j) { $('code').textContent = j.pairCode; });
+});
+$('fw').addEventListener('click', function () {
+  fetch('/api/firewall', { method: 'POST' })
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      $('fw').textContent = j.ok ? ('已放行 ✓' + (j.msg ? '：' + j.msg : '')) : ('失败：' + (j.msg || '未知'));
+    });
+});
+$('stop').addEventListener('click', function () {
+  fetch('/api/stop', { method: 'POST' }).then(function () { window.close(); });
+});
+</script>
+</body>
+</html>
