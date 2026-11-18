@@ -1,6 +1,6 @@
 {
   "name": "memo-desk",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "桌面侧边栏备忘录卡片",
   "main": "src/main.js",
   "scripts": {
